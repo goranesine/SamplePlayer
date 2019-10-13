@@ -2,22 +2,21 @@ import 'package:audioplayers/audio_cache.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:random_color/random_color.dart';
+
 
 void main() {
-  runApp(new MaterialApp(home: new ExampleApp()));
+  runApp(new MaterialApp(home: new SamplePlayer()));
 }
 
-class ExampleApp extends StatefulWidget {
+class SamplePlayer extends StatefulWidget {
   @override
-  _ExampleAppState createState() => new _ExampleAppState();
+  _SamplePlayerState createState() => new _SamplePlayerState();
 }
 
-class _ExampleAppState extends State<ExampleApp> {
-  AudioPlayer advancedPlayer = AudioPlayer(mode: PlayerMode.LOW_LATENCY);
-  double _opacity = 0;
+class _SamplePlayerState extends State<SamplePlayer> {
+  AudioPlayer myPlayer = AudioPlayer();
+  AudioPlayerState isPlaying;
   Color _backgroundColor;
-  bool _isPlaying = false;
   double _firstButtonOpacity = 1;
   double _secondButtonOpacity = 1;
   double _thirdButtonOpacity = 1;
@@ -25,15 +24,18 @@ class _ExampleAppState extends State<ExampleApp> {
   double _fifthButtonOpacity = 1;
   double _sixButtonOpacity = 1;
 
-  Stream<double> _endSample() async* {
-    advancedPlayer.onPlayerStateChanged.listen((AudioPlayerState s) {
-      s == AudioPlayerState.COMPLETED ? _opacity = 0 : _opacity = 1;
-      s == AudioPlayerState.COMPLETED ? _isPlaying = false : _opacity = 0;
-      s == AudioPlayerState.COMPLETED ? resetButtonOpacity() : _opacity = 0;
+  Stream<AudioPlayerState> _endSample() async* {
+    myPlayer.onPlayerStateChanged.listen((AudioPlayerState s) {
+      if (s == AudioPlayerState.COMPLETED) {
+        resetOpacity();
+      }
+      setState(() {
+        isPlaying = s;
+      });
     });
   }
 
-  resetButtonOpacity() {
+  resetOpacity() {
     _firstButtonOpacity = 1;
     _secondButtonOpacity = 1;
     _thirdButtonOpacity = 1;
@@ -42,139 +44,112 @@ class _ExampleAppState extends State<ExampleApp> {
     _sixButtonOpacity = 1;
   }
 
-  Color randomizecolor() {
-    setState(() {
-      RandomColor _randomColor = RandomColor();
-      _backgroundColor = _randomColor.randomColor();
-      const oneSecond = const Duration(seconds: 5);
-      new Timer.periodic(oneSecond, (Timer t) => setState(() {}));
-    });
-    return _backgroundColor;
+  Widget button(BuildContext context, String sampleName, Color buttonColor,
+      double opacity, int buttonId) {
+    return Opacity(
+      opacity: opacity,
+      child: RaisedButton(
+        onPressed: () => checkIfIsPlaying(sampleName, buttonId),
+        elevation: 50,
+        splashColor: Colors.redAccent,
+        shape: CircleBorder(),
+        color: buttonColor,
+      ),
+    );
   }
 
-  changeButtonOpacity(int id) {
-    id == 1 ? _firstButtonOpacity = 0 : _firstButtonOpacity = 1;
-
-    id == 2 ? _secondButtonOpacity = 0 : _secondButtonOpacity = 1;
-    id == 3 ? _thirdButtonOpacity = 0 : _thirdButtonOpacity = 1;
-
-    id == 4 ? _fourthButtonOpacity = 0 : _fourthButtonOpacity = 1;
-    id == 5 ? _fifthButtonOpacity = 0 : _fifthButtonOpacity = 1;
-
-    id == 6 ? _sixButtonOpacity = 0 : _sixButtonOpacity = 1;
+  checkIfIsPlaying(String sampleName, int buttonId) {
+    isPlaying != AudioPlayerState.PLAYING
+        ? loadMusic(sampleName, buttonId)
+        : Container();
   }
 
-  checkIfIsPlaying(String sampleName, int id) {
-    print(id);
+  Color changeColor() {
+    _backgroundColor == Colors.white70
+        ? _backgroundColor = Colors.black
+        : _backgroundColor = Colors.white70;
+    const oneSecond = const Duration(seconds: 1);
+    new Timer.periodic(oneSecond, (Timer t) => setState(() {}));
 
-    _isPlaying == true ? _opacity = 1 : loadMusic(sampleName);
-    _isPlaying == true ? _opacity = 1 : changeButtonOpacity(id);
+    return _backgroundColor.withOpacity(0.5);
   }
 
-  Future loadMusic(String sampleName) async {
-    advancedPlayer = await AudioCache(prefix: "music/").play("$sampleName");
+  Future loadMusic(String sampleName, int buttonId) async {
+    myPlayer = await AudioCache(prefix: "music/").play(sampleName);
+    changeOpacity(buttonId);
+    {
+      setState(() {
+        isPlaying = AudioPlayerState.PLAYING;
+      });
+    }
+  }
 
-    setState(() {
-      _isPlaying = true;
-      _opacity = 1;
-    });
+  changeOpacity(int buttonId) {
+    if (buttonId == 1) {
+      _firstButtonOpacity = 0;
+    }
+    if (buttonId == 2) {
+      _secondButtonOpacity = 0;
+    }
+    if (buttonId == 3) {
+      _thirdButtonOpacity = 0;
+    }
+    if (buttonId == 4) {
+      _fourthButtonOpacity = 0;
+    }
+    if (buttonId == 5) {
+      _fifthButtonOpacity = 0;
+    }
+    if (buttonId == 6) {
+      _sixButtonOpacity = 0;
+    }
   }
 
   @override
-  void dispose() {
-    advancedPlayer = null;
-    super.dispose();
+  void initState() {
+    super.initState();
+    isPlaying = AudioPlayerState.COMPLETED;
+    _backgroundColor = Colors.white70;
+
+
+
   }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-        child: SafeArea(
-      child: Scaffold(
-          backgroundColor: randomizecolor(),
-          body: StreamBuilder<double>(
+    return SafeArea(
+      child: new Scaffold(
+          body: StreamBuilder<Object>(
               stream: _endSample(),
-              initialData: 0.0,
-              builder: (context, asyncSnapshot) {
-                return Container(
-                  color: const Color(0xFFF3F3F3).withOpacity(_opacity),
-                  child: GridView.count(
-                    primary: false,
-                    padding: const EdgeInsets.all(20),
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 30,
-                    crossAxisCount: 2,
-                    children: <Widget>[
-                      Opacity(
-                        opacity: _firstButtonOpacity,
-                        child: RaisedButton(
-                          onPressed: () => checkIfIsPlaying("bass.wav", 1),
-                          elevation: 50,
-                          splashColor: Colors.redAccent,
-                          shape: CircleBorder(),
-                          color: Colors.redAccent,
-                        ),
+              builder: (context, snapshot) {
+                return Center(
+                    child: new Container(
+                      color: isPlaying == AudioPlayerState.COMPLETED
+                          ? changeColor()
+                          : Colors.white70,
+                      child: GridView.count(
+                        primary: false,
+                        padding: const EdgeInsets.all(20),
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 30,
+                        crossAxisCount: 2,
+                        children: <Widget>[
+                          button(context, "bass.wav", Colors.redAccent,
+                              _firstButtonOpacity, 1),
+                          button(context, "bass.wav", Colors.blue,
+                              _secondButtonOpacity, 2),
+                          button(context, "bass.wav", Colors.amberAccent,
+                              _thirdButtonOpacity, 3),
+                          button(context, "bass.wav", Colors.green,
+                              _fourthButtonOpacity, 4),
+                          button(context, "bass.wav", Colors.deepOrangeAccent,
+                              _fifthButtonOpacity, 5),
+                          button(context, "bass.wav", Colors.deepPurpleAccent,
+                              _sixButtonOpacity, 6),
+                        ],
                       ),
-                      Opacity(
-                        opacity: _secondButtonOpacity,
-                        child: RaisedButton(
-                          onPressed: () => checkIfIsPlaying("bass.wav", 2),
-                          elevation: 50,
-                          splashColor: Colors.redAccent,
-                          shape: CircleBorder(),
-                          color: Colors.blue,
-                        ),
-                      ),
-                      Opacity(
-                        opacity: _thirdButtonOpacity,
-                        child: RaisedButton(
-                          onPressed: () => checkIfIsPlaying("bass.wav", 3),
-                          elevation: 50,
-                          splashColor: Colors.redAccent,
-                          shape: CircleBorder(),
-                          color: Colors.amberAccent,
-                        ),
-                      ),
-                      Opacity(
-                        opacity: _fourthButtonOpacity,
-                        child: RaisedButton(
-                          onPressed: () => checkIfIsPlaying("bass.wav", 4),
-                          elevation: 50,
-                          splashColor: Colors.redAccent,
-                          shape: CircleBorder(),
-                          color: Colors.deepOrangeAccent,
-                        ),
-                      ),
-                      Opacity(
-                        opacity: _fifthButtonOpacity,
-                        child: RaisedButton(
-                          onPressed: () => checkIfIsPlaying("bass.wav", 5),
-                          elevation: 50,
-                          splashColor: Colors.redAccent,
-                          shape: CircleBorder(),
-                          color: Colors.deepPurpleAccent,
-                        ),
-                      ),
-                      Opacity(
-                        opacity: _sixButtonOpacity,
-                        child: RaisedButton(
-                          onPressed: () => checkIfIsPlaying("bass.wav", 6),
-                          elevation: 50,
-                          splashColor: Colors.redAccent,
-                          shape: CircleBorder(),
-                          color: Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+                    ));
               })),
-    ));
+    );
   }
-
-// void changeOpacity() {
-// setState(() {
-// _opacity = 1;
-//});
-//}
 }
